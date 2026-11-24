@@ -1,0 +1,237 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Belajar Simulasi Gravitasi</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #080d1b;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        canvas {
+            background: #050816;
+            border: 1px solid #334155;
+            width: min(900px, 95vw);
+            height: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Simulasi Gravitasi</h1>
+
+    <canvas id="space" width="900" height="600"></canvas>
+
+<script>
+
+// =================================
+// 1. PERSIAPAN CANVAS
+// =================================
+
+const canvas = document.getElementById("space");
+const ctx = canvas.getContext("2d");
+
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+
+const G = 100;
+const SOFTENING = 8;
+
+//objek planet
+let bodies = [];
+
+const sunMass = 12000;
+
+// Membuat matahari
+bodies.push({
+    x: WIDTH / 2,
+    y: HEIGHT / 2,
+    vx: 0,
+    vy: 0,
+    mass: sunMass,
+    radius: 18,
+    color: "yellow",
+    trail: []
+});
+
+
+// Fungsi membuat planet
+function createPlanet(distance, mass, radius, color) {
+
+    // Kecepatan awal orbit mendekati orbit melingkar
+    const speed = Math.sqrt(G * sunMass / distance);
+
+    bodies.push({
+        x: WIDTH / 2 + distance,
+        y: HEIGHT / 2,
+
+        vx: 0,
+        vy: speed,
+
+        mass: mass,
+        radius: radius,
+        color: color,
+
+        trail: []
+    });
+}
+
+
+// Membuat tiga planet
+createPlanet(150, 12, 7, "cyan");
+createPlanet(250, 18, 9, "orange");
+createPlanet(340, 9, 6, "violet");
+
+function calculateGravity() {
+
+    let acceleration = [];
+
+    // Menyiapkan percepatan setiap benda
+    for (let i = 0; i < bodies.length; i++) {
+        acceleration.push({ x: 0, y: 0 });
+    }
+
+    // Menghitung pengaruh gravitasi setiap benda
+    for (let i = 0; i < bodies.length; i++) {
+
+        for (let j = 0; j < bodies.length; j++) {
+
+            // Benda tidak menarik dirinya sendiri
+            if (i === j) continue;
+
+            let dx = bodies[j].x - bodies[i].x;
+            let dy = bodies[j].y - bodies[i].y;
+
+            let distanceSquared =
+                dx * dx + dy * dy + SOFTENING * SOFTENING;
+
+            // Mencegah pembagian dengan nol
+            let denominator = Math.pow(distanceSquared, 1.5);
+
+            // Menghitung percepatan gravitasi
+            acceleration[i].x +=
+                G * bodies[j].mass * dx / denominator;
+
+            acceleration[i].y +=
+                G * bodies[j].mass * dy / denominator;
+        }
+    }
+
+    return acceleration;
+}
+
+function update(dt) {
+
+    let acceleration = calculateGravity();
+
+    for (let i = 0; i < bodies.length; i++) {
+
+        let body = bodies[i];
+
+        // Memperbarui kecepatan
+        body.vx += acceleration[i].x * dt;
+        body.vy += acceleration[i].y * dt;
+
+        // Memperbarui posisi
+        body.x += body.vx * dt;
+        body.y += body.vy * dt;
+
+        // Menyimpan jejak orbit
+        body.trail.push({
+            x: body.x,
+            y: body.y
+        });
+
+        // Membatasi panjang jejak
+        if (body.trail.length > 180) {
+            body.trail.shift();
+        }
+    }
+}
+
+function draw() {
+
+    // Membersihkan layar
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    // Menggambar latar belakang
+    ctx.fillStyle = "#050816";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Menggambar jejak orbit
+    for (let body of bodies) {
+
+        ctx.beginPath();
+
+        if (body.trail.length > 1) {
+
+            ctx.moveTo(body.trail[0].x, body.trail[0].y);
+
+            for (let point of body.trail) {
+                ctx.lineTo(point.x, point.y);
+            }
+
+            ctx.strokeStyle = body.color;
+            ctx.globalAlpha = 0.5;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // Menggambar semua planet
+    for (let body of bodies) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            body.x,
+            body.y,
+            body.radius,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = body.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = body.color;
+
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+    }
+}
+
+let lastTime = 0;
+
+function animate(timestamp) {
+
+    // Menghitung selang waktu dalam detik
+    let dt = (timestamp - lastTime) / 1000;
+
+    lastTime = timestamp;
+
+    // Membatasi langkah waktu agar simulasi stabil
+    dt = Math.min(dt, 0.03);
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(animate);
+}
+
+
+// Memulai simulasi
+requestAnimationFrame(animate);
+
+</script>
+
+</body>
+</html>
